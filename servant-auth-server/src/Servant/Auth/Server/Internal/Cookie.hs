@@ -23,17 +23,21 @@ import Servant.Auth.Server.Internal.ConfigTypes
 import Servant.Auth.Server.Internal.JWT         (FromJWT (decodeJWT), ToJWT,
                                                  makeJWT)
 import Servant.Auth.Server.Internal.Types
-
+import Debug.Trace
 
 cookieAuthCheck :: FromJWT usr => CookieSettings -> JWTSettings -> AuthCheck usr
 cookieAuthCheck ccfg jwtCfg = do
   req <- ask
+  traceM $ "cookieAuthCheck header: " ++ show (requestHeaders req)  
   jwtCookie <- maybe mempty return $ do
+    traceM "has jwt cookie"
     cookies' <- lookup hCookie $ requestHeaders req
     let cookies = parseCookies cookies'
+    traceM $ "cookies " ++ show cookies
     -- Apply the XSRF check if enabled.
     guard $ fromMaybe True $ do
       xsrfCookieCfg <- xsrfCheckRequired ccfg req
+      traceM "xsrf Check Required"
       return $ xsrfCookieAuthCheck xsrfCookieCfg req cookies
     -- session cookie *must* be HttpOnly and Secure
     lookup (sessionCookieName ccfg) cookies
@@ -42,11 +46,14 @@ cookieAuthCheck ccfg jwtCfg = do
     Jose.verifyClaims (jwtSettingsToJwtValidationSettings jwtCfg)
                       (validationKeys jwtCfg)
                       unverifiedJWT
-  case verifiedJWT of
+  res <- case verifiedJWT of
     Left (_ :: Jose.JWTError) -> mzero
     Right v -> case decodeJWT v of
       Left _ -> mzero
       Right v' -> return v'
+  
+  traceM $ "cookieAuthCheck res " 
+  pure res
 
 xsrfCheckRequired :: CookieSettings -> Request -> Maybe XsrfCookieSettings
 xsrfCheckRequired cookieSettings req = do
@@ -57,6 +64,7 @@ xsrfCheckRequired cookieSettings req = do
 
 xsrfCookieAuthCheck :: XsrfCookieSettings -> Request -> [(BS.ByteString, BS.ByteString)] -> Bool
 xsrfCookieAuthCheck xsrfCookieCfg req cookies = fromMaybe False $ do
+  traceM "xsrfCookieAuthCheck"
   xsrfCookie <- lookup (xsrfCookieName xsrfCookieCfg) cookies
   xsrfHeader <- lookup (mk $ xsrfHeaderName xsrfCookieCfg) $ requestHeaders req
   return $ xsrfCookie `constTimeEq` xsrfHeader

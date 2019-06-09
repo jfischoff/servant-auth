@@ -18,6 +18,7 @@ import           Network.Wai          (requestHeaders)
 
 import Servant.Auth.Server.Internal.ConfigTypes
 import Servant.Auth.Server.Internal.Types
+import Debug.Trace
 
 -- This should probably also be from ClaimSet
 --
@@ -47,9 +48,12 @@ class ToJWT a where
 -- are protecting a @Raw@ endpoint.
 jwtAuthCheck :: FromJWT usr => JWTSettings -> AuthCheck usr
 jwtAuthCheck config = do
+  traceM "jwtAuthCheck"
   req <- ask
   token <- maybe mempty return $ do
+    traceM "Before Lookup"
     authHdr <- lookup "Authorization" $ requestHeaders req
+    traceM $ "authHdr " ++ show authHdr
     let bearer = "Bearer "
         (mbearer, rest) = BS.splitAt (BS.length bearer) authHdr
     guard (mbearer `constTimeEq` bearer)
