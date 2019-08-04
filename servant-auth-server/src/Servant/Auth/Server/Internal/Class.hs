@@ -20,7 +20,7 @@ class IsAuth a v  where
 
 instance FromJWT usr => IsAuth Cookie usr where
   type AuthArgs Cookie = '[CookieSettings, JWTSettings]
-  runAuth _ _ = cookieAuthCheck
+  runAuth _ _ = const jwtAuthCheck 
 
 instance FromJWT usr => IsAuth JWT usr where
   type AuthArgs JWT = '[JWTSettings]
